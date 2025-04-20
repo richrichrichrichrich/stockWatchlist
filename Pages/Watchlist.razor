@@ -1,34 +1,392 @@
 @page "/watchlist"
-@inject HttpClient Http
+@using AsxWatchlist.Models
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IHttpClientFactory ClientFactory
+@inject NavigationManager NavManager
+@inject AuthenticationStateProvider AuthProvider
+@inject IJSRuntime JS
 
-<h3>Stock Watchlist</h3>
-<table class="table">
-    <thead>
-        <tr>
-            <th>Ticker</th>
-            <th>Buy Price</th>
-            <th>Sell Price</th>
-            <th>Expiry Date</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var stock in Watchlist)
+<h1 class="mb-4">📈 My ASX Watchlist</h1>
+
+@if (toastVisible)
+{
+    <div class="toast-container toast-success">
+        <strong>✅ Saved watchlist update succesfully</strong> @toastMessage
+    </div>
+}
+
+@if (!isRendered)
+{
+    <p>⚙️ Preparing page...</p>
+}
+else if (isLoading)
+{
+    <p>⏳ Loading...</p>
+}
+else if (items.Count == 0)
+{
+    <p>🫥 No stocks in your watchlist yet.</p>
+}
+else
+{
+    <div style="overflow-x: auto; width: 100%;">
+        <table class="watchlist-table table" style="font-family: width: 100%; Consolas;">
+            <tbody>
+                @foreach (var item in items)
+                {
+                    <tr style="height: 1rem;"></tr> @* Gap before each ticker *@
+
+                    <div class="ticker-wrapper">
+                    @* Row 1: Ticker and Trade Status *@
+                    <tr>
+                        <td colspan="5">
+                            <div style="vertical-align: top;">
+                            <div class="d-flex justify-content-between align-items-center p-2">
+                                <strong style="font-size: 1.3rem;">@item.Ticker</strong>
+                                <span class="badge bg-info text-dark">🟢 Trade Status: OK</span>
+                            </div>
+                            </div>
+
+                        </td>
+                    </tr>
+
+                    @* Row 2: Targets, Price, Holdings, Orders, Notes *@
+                    <tr class="watchlist-2ndRow">
+    <td colspan="5">
+        <div  style="vertical-align: top;">
+            <table class="w-100">
+                <tr>
+                    <td style="vertical-align: top;">
+    <strong>🎯 Targets</strong><br />
+    <div class="form-group mb-2" >
+        <label class="form-label small">Buy</label><br />
+        <InputNumber @bind-Value="item.TargetBuyPrice"
+                     class="form-control target-input"
+                     @onblur="() => SaveField(item)" />
+    </div> 
+    <div class="form-group">
+        <label class="form-label small">Sell</label><br />
+        <InputNumber @bind-Value="item.TargetSellPrice"
+                     class="form-control target-input"
+                     @onblur="() => SaveField(item)" />
+    </div>
+</td>
+                    <td style="vertical-align: top;">
+                        <strong>💰 Price</strong><br />å
+                        @if (isRefreshing.TryGetValue(item.Id, out var refreshing) && refreshing)
+                        {
+                            <em>Refreshing...</em>
+                        }
+                        else
+                        {
+                            <span>@item.LastKnownPrice</span>
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => RefreshPrice(item.Id)">🔄</button>
+                        }
+                        <div class="text-muted small">@item.LastUpdated?.ToLocalTime().ToString("g")</div>
+                    </td>
+                    <td style="vertical-align: top;">
+                        <strong>📦 Holdings</strong><br />
+                        Qty: @item.QuantityHeld<br />
+                        Avg: @item.AverageBuyPrice<br />
+                        Value: @(item.AverageBuyPrice * item.QuantityHeld)
+                    </td>
+                    <td style="vertical-align: top;">
+                        <strong>📋 Orders</strong><br />
+                        <em>(orders coming soon)</em><br />
+                        <button class="btn btn-sm btn-outline-secondary">🔄 Refresh Orders</button>
+                    </td>
+                    <td style="vertical-align: top;">
+                        <strong>📝 Notes</strong><br />
+                        <textarea class="notes-textarea" rows="5" cols="50"
+                                  @bind="item.Notes"
+                                  @bind:event="onchange"
+                                  @onblur="() => SaveField(item)"></textarea>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </td>
+</tr>
+
+                    @* Row 3: Tabs for Trade History, Analysis, Graph *@
+                    <tr>
+    <td colspan="5">
+        <div style="vertical-align: top;">
+        <div class="tab-container">
+    <div class="tab-header">
+        <button class="tab-button @(IsActiveTab(item.Id, "trade"))" @onclick='() => SelectTab(item.Id, "trade")'>📈 Trade History</button>
+        <button class="tab-button @(IsActiveTab(item.Id, "analysis"))" @onclick='() => SelectTab(item.Id, "analysis")'>📊 Analysis</button>
+        <button class="tab-button @(IsActiveTab(item.Id, "graph"))" @onclick='() => SelectTab(item.Id, "graph")'>📉 Graph</button>
+    </div>
+   
+
+
+    <div class="tab-body">
+        @if (selectedId == item.Id)
         {
-            <tr>
-                <td>@stock.Ticker</td>
-                <td>@stock.BuyPrice</td>
-                <td>@stock.SellPrice</td>
-                <td>@stock.ExpiryDate.ToShortDateString()</td>
-            </tr>
+            @switch (activeTab)
+            {
+                case "trade":
+                    <p>(Trade history UI coming soon...)</p>
+                    break;
+                case "analysis":
+                    <p>(Analysis values here...)</p>
+                    break;
+                case "graph":
+                    <p>(Graph rendering here...)</p>
+                    break;
+            }
         }
-    </tbody>
-</table>
+    </div> </div>
+</div>
+
+
+        @* <div class="tab-content border p-3 bg-light">
+            @if (selectedId == item.Id)
+            {
+                @switch (activeTab)
+                {
+                    case "trade":
+                        <div><p>(Trade history UI coming soon...)</p></div>
+                        break;
+                    case "analysis":
+                        <div><p>(Analysis values will go here...)</p></div>
+                        break;
+                    case "graph":
+                        <div><p>(Graph rendering goes here...)</p></div>
+                        break;
+                }
+            }
+        </div> *@
+    </td>
+</tr>
+</div>
+
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <button class="btn btn-success mb-3" @onclick="AddNew">➕ Add New</button>
+}
+
 
 @code {
-    private List<WatchlistItem> Watchlist = new();
+    private List<WatchlistItem> items = new();
+    private bool isRendered = false;
+    private bool isLoading = true;
+    private int? refreshingItemId = null;
+    private Dictionary<int, bool> isRefreshing = new(); // track loading per row
+    private Dictionary<int, string> refreshErrors = new(); // track errors per row
 
-    protected override async Task OnInitializedAsync()
+    private bool showToast = false;
+    private bool toastVisible = false;
+    private string toastMessage = string.Empty;
+    @inject IJSRuntime JS
+    private ElementReference buyInputRef;
+    private ElementReference sellInputRef;
+    private int? hoverRow = null;
+    private int? refreshingId = null;
+
+    private int? expandedItemId = null;
+    private int? showTradeHistoryId = null;
+
+    private int? selectedId = null;
+private string activeTab = "trade";
+
+void SelectTab(int id, string tab)
+{
+    selectedId = id;
+    activeTab = tab;
+}
+
+    void ToggleAccordion(int id)
     {
-        Watchlist = await Http.GetFromJsonAsync<List<WatchlistItem>>("/api/watchlist");
+        expandedItemId = (expandedItemId == id) ? null : id;
     }
+
+    void ToggleTradeHistory(int id)
+    {
+        showTradeHistoryId = (showTradeHistoryId == id) ? null : id;
+    }
+
+
+    void ShowToast(string message)
+    {
+        toastMessage = message;
+        toastVisible = true;
+        StateHasChanged();
+
+        // Auto-hide after 3 seconds
+        _ = Task.Delay(3000).ContinueWith(_ =>
+        {
+            toastVisible = false;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        isRendered = true;
+
+        try
+        {
+            var auth = await AuthProvider.GetAuthenticationStateAsync();
+            var user = auth.User;
+
+            if (!user.Identity?.IsAuthenticated ?? true)
+            {
+                Console.WriteLine("❌ Not authenticated.");
+                isLoading = false;
+                StateHasChanged();
+                return;
+            }
+
+            var client = ClientFactory.CreateClient("Default");
+            var response = await client.GetAsync("/api/watchlist");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("🚨 API call failed: " + response.StatusCode);
+                isLoading = false;
+                StateHasChanged();
+                return;
+            }
+
+            items = (await response.Content.ReadFromJsonAsync<List<WatchlistItem>>() ?? new())
+            .OrderBy(i => i.Ticker)
+            .ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("🔥 Exception in Watchlist: " + ex.Message);
+        }
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    void AddNew() => NavManager.NavigateTo("/watchlist/edit");
+    void EditItem(int id) => NavManager.NavigateTo($"/watchlist/edit/{id}");
+
+    async Task DeleteItem(int id)
+    {
+        var client = ClientFactory.CreateClient("Default");
+        await client.DeleteAsync($"/api/watchlist/{id}");
+
+        items = (await client.GetFromJsonAsync<List<WatchlistItem>>("/api/watchlist") ?? new List<WatchlistItem>())
+        .OrderBy(i => i.Ticker)
+        .ToList();
+    }
+
+
+    private async Task RefreshPrice(int id)
+    {
+        isRefreshing[id] = true;
+        refreshErrors.Remove(id);
+        StateHasChanged();
+
+        var client = ClientFactory.CreateClient("Default");
+        var response = await client.PostAsync($"/api/watchlist/{id}/refresh", null);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            refreshErrors[id] = $"Failed to refresh. Status: {response.StatusCode}";
+            isRefreshing[id] = false;
+            StateHasChanged();
+            return;
+        }
+
+        var updated = await response.Content.ReadFromJsonAsync<WatchlistItem>();
+        var index = items.FindIndex(i => i.Id == id);
+        if (index >= 0 && updated != null)
+        {
+            items[index] = updated;
+        }
+
+        isRefreshing[id] = false;
+        StateHasChanged();
+    }
+
+    async Task SaveField(WatchlistItem item)
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+Console.WriteLine($"🔎 Saving item {item.Id}: Buy={item.TargetBuyPrice}, Sell={item.TargetSellPrice}, User={item.UserId}");
+
+
+        if (!user.Identity?.IsAuthenticated ?? true)
+        {
+            Console.WriteLine("❌ Not authenticated, cannot save.");
+            return;
+        }
+
+        item.UserId ??= user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+
+        var client = ClientFactory.CreateClient("Default");
+        var response = await client.PutAsJsonAsync($"/api/watchlist/{item.Id}", item);
+        if (!response.IsSuccessStatusCode)
+        {
+            Console.WriteLine($"❌ Failed to auto-save item {item.Id}: {response.StatusCode}");
+            return;
+        }
+
+
+
+        // Optional: trigger toast here if needed
+        ShowToast("...");
+    }
+
+    @* void SelectText(FocusEventArgs e)
+{
+JS.InvokeVoidAsync("selectInputText", e.Target);
+} *@
+
+
+    private async Task SelectInput(ElementReference input)
+    {
+        await JS.InvokeVoidAsync("eval", "setTimeout(() => arguments[0].select(), 0)", input);
+    }
+
+    private string IsActiveTab(int id, string tab) =>
+    selectedId == id && activeTab == tab ? "active" : "";
+
+
+
+    public class WatchlistItem
+    {
+        public int Id { get; set; }
+        public string Ticker { get; set; } = string.Empty;
+        public decimal TargetBuyPrice { get; set; }
+        public decimal TargetSellPrice { get; set; }
+        public DateTime ExpiryDate { get; set; }
+        public decimal? LastKnownPrice { get; set; }
+        public DateTime? LastUpdated { get; set; }
+        public string Notes { get; set; } = string.Empty;
+        public string UserId { get; set; } = string.Empty;
+
+        // Portfolio fields
+        public int QuantityHeld { get; set; }
+        public decimal AverageBuyPrice { get; set; }
+        public string LastTradeType { get; set; } = string.Empty;
+        public int LastTradeQuantity { get; set; }
+        public decimal LastTradePrice { get; set; }
+        public DateTime? LastTradeDate { get; set; }
+        public string LastTradeNote { get; set; } = string.Empty;
+
+        // Analysis fields
+        public string AnalysisSector { get; set; } = string.Empty;
+        public string AnalysisIndustry { get; set; } = string.Empty;
+        public string AnalysisPERatio { get; set; } = string.Empty;
+        public string AnalysisDividend { get; set; } = string.Empty;
+        public string AnalysisInsiderBuying { get; set; } = string.Empty;
+        public string AnalysisInsiderSelling { get; set; } = string.Empty;
+        public string AnalysisCountry { get; set; } = string.Empty;
+        public string AnalysisCapSize { get; set; } = string.Empty;
+        public string AnalysisValuation { get; set; } = string.Empty;
+        public string AnalysisNotes { get; set; } = string.Empty;
+    }
+
 }

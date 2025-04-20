@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -10,6 +11,10 @@ using System.Net;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using AsxWatchlist.Models;
+using AsxWatchlist.Data;
+
+
 
 public class StockPriceChecker : BackgroundService
 {
@@ -30,7 +35,7 @@ public class StockPriceChecker : BackgroundService
         {
             using (var scope = _serviceProvider.CreateScope())
             {
-                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
                 await CheckStockPrices(context, userManager);
             }
@@ -38,13 +43,13 @@ public class StockPriceChecker : BackgroundService
         }
     }
 
-    private async Task CheckStockPrices(AppDbContext context, UserManager<ApplicationUser> userManager)
+    private async Task CheckStockPrices(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
     {
-        var watchlist = await context.Watchlist.ToListAsync();
+        var watchlist = await context.WatchlistItems.ToListAsync();
         foreach (var item in watchlist)
         {
             var price = await GetStockPrice(item.Ticker);
-            if (price != null && (price <= item.BuyPrice || price >= item.SellPrice))
+            if (price != null && (price <= item.TargetBuyPrice || price >= item.TargetSellPrice))
             {
                 var user = await userManager.FindByIdAsync(item.UserId);
                 if (user != null)

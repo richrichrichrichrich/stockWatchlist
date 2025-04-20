@@ -1,0 +1,174 @@
+@page "/watchlist/edit"
+@page "/watchlist/edit/{Id:int}"
+
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IHttpClientFactory ClientFactory
+@inject NavigationManager NavManager
+
+@if (!isRendered)
+{
+    <p>⚙️ Preparing page...</p> <!-- optional: shows only during prerender -->
+}
+else if (isLoading)
+{
+    <p>⏳ Loading...</p>  <!-- or a fancy spinner -->
+}
+else
+{
+    <EditForm Model="item" OnValidSubmit="Save">
+
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label>Ticker</label>
+        <InputText class="form-control" @bind-Value="item.Ticker" />
+    </div>
+
+    <div class="mb-3">
+        <label>Target Buy Price</label>
+        <InputNumber class="form-control" @bind-Value="item.TargetBuyPrice" TValue="decimal" />
+    </div>
+
+    <div class="mb-3">
+        <label>Target Sell Price</label>
+        <InputNumber class="form-control" @bind-Value="item.TargetSellPrice" TValue="decimal" />
+    </div>
+
+    <div class="mb-3">
+        <label>Expiry Date</label>
+        <InputDate class="form-control" @bind-Value="item.ExpiryDate" TValue="DateTime" />
+    </div>
+
+    <div class="mb-3">
+        <label>Notes</label>
+        <InputTextArea class="form-control" @bind-Value="item.Notes" />
+    </div>
+
+    <div class="mb-3">
+        <label>Last Known Price</label>
+        <input class="form-control" value="@item.LastKnownPrice" disabled />
+    </div>
+
+    <div class="mb-3">
+        <label>Last Updated</label>
+        <input class="form-control" value="@item.LastUpdated?.ToLocalTime().ToString("dd MMM yyyy HH:mm")" disabled />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save</button>
+    <button class="btn btn-secondary" @onclick="Cancel">Cancel</button>
+</EditForm>
+}
+
+
+@code {
+
+    [Parameter] public int? Id { get; set; }
+    private WatchlistItem item = new();
+    private bool IsNew => !Id.HasValue;
+    private bool isRendered = false;
+    private bool isLoading = true;
+
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            isRendered = true;
+            StateHasChanged(); // Trigger re-render now that full context is available
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id.HasValue)
+        {
+            var client = ClientFactory.CreateClient("Default");
+            item = await client.GetFromJsonAsync<WatchlistItem>($"/api/watchlist/{Id.Value}") ?? new();
+        }
+        else
+        {
+            item.ExpiryDate = DateTime.UtcNow.Date; // ✅ Store in UTC
+
+        }
+
+        isLoading = false; // ✅ Done loading
+    }
+
+    async Task Save()
+{
+    if (!isRendered)
+    {
+        Console.WriteLine("⏳ Skipping Save() during prerendering.");
+        return;
+    }
+
+    var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+    var user = authState.User;
+
+    Console.WriteLine($"🔐 User authenticated: {user.Identity?.IsAuthenticated}");
+    Console.WriteLine($"👤 Name: {user.Identity?.Name}");
+    Console.WriteLine($"🪪 ID Claim: {user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value}");
+
+    if (user.Identity == null || !user.Identity.IsAuthenticated)
+    {
+        Console.WriteLine("❌ User not authenticated. Aborting save.");
+        return;
+    }
+
+    item.UserId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+    item.Notes ??= "";
+
+    Console.WriteLine("🚀 Save() method called!");
+    Console.WriteLine($"IsNew = {IsNew}");
+
+    var client = ClientFactory.CreateClient("Default");
+
+    if (IsNew)
+    {
+        Console.WriteLine("📬 Posting new item...");
+        var response = await client.PostAsJsonAsync("/api/watchlist", item);
+        var content = await response.Content.ReadAsStringAsync();
+        Console.WriteLine($"🪵 Response content: {content}");
+        if (!response.IsSuccessStatusCode)
+        {
+            Console.WriteLine("❌ Failed to save item.");
+            return;
+        }
+    }
+    else
+    {
+        Console.WriteLine("📦 Updating existing item...");
+        var response = await client.PutAsJsonAsync($"/api/watchlist/{item.Id}", item);
+        if (!response.IsSuccessStatusCode)
+        {
+            Console.WriteLine("❌ Failed to update item.");
+            return;
+        }
+    }
+
+    NavManager.NavigateTo("/watchlist", forceLoad: true);
+}
+
+
+
+    void Cancel() => NavManager.NavigateTo("/watchlist", forceLoad: true);
+
+
+    private string FormattedLastUpdated => item.LastUpdated?.ToLocalTime().ToString("dd MMM yyyy HH:mm") ?? "";
+
+    public class WatchlistItem
+    {
+        public int Id { get; set; }
+        public string Ticker { get; set; } = string.Empty;
+        public decimal TargetBuyPrice { get; set; }
+        public decimal TargetSellPrice { get; set; }
+        public DateTime ExpiryDate { get; set; }
+        public decimal? LastKnownPrice { get; set; }
+        public DateTime? LastUpdated { get; set; }
+        public string? Notes { get; set; } = string.Empty;
+        public string UserId { get; set; } = string.Empty; // ✅ Add this line
+    }
+}

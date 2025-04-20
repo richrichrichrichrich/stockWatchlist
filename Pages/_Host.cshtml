@@ -1,0 +1,36 @@
+@page "/"
+@namespace AsxWatchlist.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    Layout = "_Layout";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ASX Watchlist</title>
+    <base href="~/" />
+    <link rel="stylesheet" href="css/bootstrap.min.css" />
+    <link href="css/site.css" rel="stylesheet" />
+    <script>
+        function selectInputText(target) {
+            if (target instanceof HTMLElement) {
+            setTimeout(() => target.select?.(), 1);
+            }
+        }
+        </script>
+
+</head>
+<body>
+    <app>
+        <CascadingAuthenticationState>
+            <component type="typeof(App)" render-mode="Server" />
+        </CascadingAuthenticationState> 
+    
+    </app>
+
+    <script src="_framework/blazor.server.js"></script>
+</body>
+</html>
