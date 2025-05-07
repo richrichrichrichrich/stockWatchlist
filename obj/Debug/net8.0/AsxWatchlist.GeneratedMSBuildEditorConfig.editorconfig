@@ -30,8 +30,8 @@ build_property._RazorSourceGeneratorDebug =
 build_metadata.AdditionalFiles.TargetPath = QXBwLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[/Users/richrichrichrichrich/Projects_DOTNET/stockWatchlist/MainLayout.razor]
-build_metadata.AdditionalFiles.TargetPath = TWFpbkxheW91dC5yYXpvcg==
+[/Users/richrichrichrichrich/Projects_DOTNET/stockWatchlist/Pages/Configuration.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvQ29uZmlndXJhdGlvbi5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
 [/Users/richrichrichrichrich/Projects_DOTNET/stockWatchlist/Pages/Index.razor]
@@ -232,10 +232,6 @@ build_metadata.AdditionalFiles.CssScope =
 
 [/Users/richrichrichrichrich/Projects_DOTNET/stockWatchlist/Pages/_Host.cshtml]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXMvX0hvc3QuY3NodG1s
-build_metadata.AdditionalFiles.CssScope = 
-
-[/Users/richrichrichrichrich/Projects_DOTNET/stockWatchlist/Pages/_Layout.cshtml]
-build_metadata.AdditionalFiles.TargetPath = UGFnZXMvX0xheW91dC5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
 [/Users/richrichrichrichrich/Projects_DOTNET/stockWatchlist/Pages/_ViewImports.cshtml]

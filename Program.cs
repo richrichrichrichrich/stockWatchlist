@@ -9,6 +9,7 @@ using AsxWatchlist.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+
 // ✅ Load config and secrets
 builder.Configuration
     .SetBasePath(Directory.GetCurrentDirectory())
@@ -80,6 +81,11 @@ builder.Services.AddHttpClient("Default", (sp, client) =>
 builder.Services.AddHttpClient<StockPriceService>();
 builder.Services.AddScoped<StockPriceService>();
 
+builder.Services.Configure<SuperheroConfig>(
+    builder.Configuration.GetSection("SuperheroCredentials"));
+
+builder.Services.AddScoped<SuperheroTrader>();
+
 
 var app = builder.Build();
 
@@ -101,5 +107,6 @@ app.MapControllers();
 app.MapRazorPages();
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
+
 
 app.Run();

@@ -86,6 +86,73 @@ namespace AsxWatchlist.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("AsxWatchlist.Models.UserConfig", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("CheckFriday")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("CheckHoldingsFrequency")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("CheckMonday")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("CheckSaturday")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("CheckSunday")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("CheckThursday")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("CheckTradeFrequency")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("CheckTuesday")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("CheckWednesday")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("DefaultExpiryLengthDays")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("DefaultTradeAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("MaxHoldingAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<bool>("ShowOneExpandedTicker")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("StopLossPercent")
+                        .HasColumnType("numeric");
+
+                    b.Property<TimeSpan>("TradingDayEnd")
+                        .HasColumnType("interval");
+
+                    b.Property<TimeSpan>("TradingDayStart")
+                        .HasColumnType("interval");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("UserConfigs");
+                });
+
             modelBuilder.Entity("AsxWatchlist.Models.WatchlistItem", b =>
                 {
                     b.Property<int>("Id")
@@ -156,6 +223,12 @@ namespace AsxWatchlist.Migrations
 
                     b.Property<string>("Sector")
                         .HasColumnType("text");
+
+                    b.Property<decimal?>("StopLossPercent")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("StopLossPrice")
+                        .HasColumnType("numeric");
 
                     b.Property<decimal>("TargetBuyPrice")
                         .HasColumnType("decimal(18,2)");

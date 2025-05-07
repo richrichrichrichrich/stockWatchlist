@@ -1,12 +1,19 @@
 @page "/watchlist"
 @using AsxWatchlist.Models
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using AsxWatchlist.Services
+
+@inject AsxWatchlist.Services.SuperheroTrader trader
+
+@inject SuperheroTrader Trader
 @inject IHttpClientFactory ClientFactory
 @inject NavigationManager NavManager
 @inject AuthenticationStateProvider AuthProvider
 @inject IJSRuntime JS
 
 <h1 class="mb-4">📈 My ASX Watchlist</h1>
+
 
 @if (toastVisible)
 {
@@ -30,256 +37,405 @@ else if (items.Count == 0)
 else
 {
     <div style="overflow-x: auto; width: 100%;">
-        <table class="watchlist-table table" style="font-family: width: 100%; Consolas;">
-            <tbody>
-                @foreach (var item in items)
-                {
-                    <tr style="height: 1rem;"></tr> @* Gap before each ticker *@
+        <table class="watchlist-table table" style="width: 100%; font-family: Consolas;">
+            @foreach (var item in items)
+            {
+                <tbody class="ticker-wrapper">
+                    <tr style="height: 1rem;"></tr>
 
-                    <div class="ticker-wrapper">
-                    @* Row 1: Ticker and Trade Status *@
+                    <!-- Ticker Header -->
                     <tr>
                         <td colspan="5">
-                            <div style="vertical-align: top;">
                             <div class="d-flex justify-content-between align-items-center p-2">
-                                <strong style="font-size: 1.3rem;">@item.Ticker</strong>
+                                <strong style="font-size: 1.3rem; cursor: pointer;" @onclick="() => ToggleTicker(item.Id)">
+                                    @item.Ticker
+                                </strong>
                                 <span class="badge bg-info text-dark">🟢 Trade Status: OK</span>
                             </div>
-                            </div>
-
                         </td>
                     </tr>
 
-                    @* Row 2: Targets, Price, Holdings, Orders, Notes *@
-                    <tr class="watchlist-2ndRow">
-    <td colspan="5">
-        <div  style="vertical-align: top;">
-            <table class="w-100">
-                <tr>
-                    <td style="vertical-align: top;">
-    <strong>🎯 Targets</strong><br />
-    <div class="form-group mb-2" >
-        <label class="form-label small">Buy</label><br />
-        <InputNumber @bind-Value="item.TargetBuyPrice"
-                     class="form-control target-input"
-                     @onblur="() => SaveField(item)" />
-    </div> 
-    <div class="form-group">
-        <label class="form-label small">Sell</label><br />
-        <InputNumber @bind-Value="item.TargetSellPrice"
-                     class="form-control target-input"
-                     @onblur="() => SaveField(item)" />
+                    <!-- Accordion Content -->
+                    <tr class="accordion-row @(expandedItemId == item.Id ? "expanded" : "")">
+                        <td colspan="5" style="padding: 0; border: none;">
+                            <div class="accordion-content">
+
+                                <!-- Row 2: Targets, Price, Holdings, Buy Now -->
+                                <table class="w-100">
+                                    <tr>
+                                        <td style="vertical-align: top; min-width: 220px;">
+                                            <strong>🎯 Targets</strong><br />
+
+                                            <div class="d-flex align-items-center mb-2">
+                                                <label class="form-label me-2" style="width: 80px;">Buy</label>
+                                                <InputNumber @bind-Value="item.TargetBuyPrice" class="form-control target-input"
+                                                    @onblur="() => SaveField(item)" />
+                                            </div>
+
+                                            <div class="d-flex align-items-center mb-2">
+                                                <label class="form-label me-2" style="width: 80px;">Sell</label>
+                                                <InputNumber @bind-Value="item.TargetSellPrice"
+                                                    class="form-control target-input" @onblur="() => SaveField(item)" />
+                                            </div>
+
+                                            <div class="d-flex align-items-center mb-2">
+                                                <label class="form-label me-2" style="width: 80px;">Stop %</label>
+                                                <InputNumber @bind-Value="item.StopLossPercent"
+                                                    class="form-control target-input"
+                                                    @onblur="() => OnStopLossPercentChanged(item)" />
+                                            </div>
+
+                                            <div class="d-flex align-items-center">
+                                                <label class="form-label me-2" style="width: 80px;">Stop $</label>
+                                                <InputNumber @bind-Value="item.StopLossPrice" class="form-control target-input"
+                                                    @onblur="() => OnStopLossPriceChanged(item)" />
+                                            </div>
+                                        </td>
+
+                                        <td style="vertical-align: top;">
+                                            <strong>💰 Price</strong><br />
+                                            @if (item.StopLossPrice > 0 && item.LastKnownPrice.HasValue && item.LastKnownPrice <
+                                                                                item.StopLossPrice)
+                                            {
+                                                <span class="text-danger fw-bold">⚠️ @item.LastKnownPrice</span>
+                                                <div class="small text-danger">Below stop loss!</div>
+                                            }
+                                            else
+                                            {
+                                                <span>@item.LastKnownPrice</span>
+                                            }
+
+                                            <button class="btn btn-sm btn-outline-secondary"
+                                                @onclick="() => RefreshPrice(item.Id)">🔄</button>
+                                            <div class="text-muted small">@item.LastUpdated?.ToLocalTime().ToString("g")</div>
+                                        </td>
+
+                                        <td style="vertical-align: top;">
+                                            <strong>📦 Holdings</strong><br />
+                                            Qty: @item.QuantityHeld<br />
+                                            Avg: @item.AverageBuyPrice<br />
+                                            Value: @(item.AverageBuyPrice* item.QuantityHeld)
+                                        </td>
+
+                                        <td style="vertical-align: top;">
+    <strong>🛒 Buy Now</strong><br />
+
+    <div class="d-flex align-items-center mb-2">
+        <label class="form-label me-2 small" style="width: 60px;">Amount</label>
+        <InputNumber @bind-Value="item.BuyNowTotalCost" class="form-control target-input" />
     </div>
+
+    <div class="d-flex align-items-center mb-2">
+        <label class="form-label me-2 small" style="width: 60px;">Price</label>
+        <InputNumber @bind-Value="item.BuyNowPrice" class="form-control target-input" />
+    </div>
+
+    <div class="form-check small mb-2">
+        <InputCheckbox @bind-Value="item.BuyNowMarketOrder" class="form-check-input" id=@($"marketOrder_{item.Id}") />
+        <label class="form-check-label" for=@($"marketOrder_{item.Id}")>Market Order</label>
+    </div>
+
+    <button class="btn btn-sm btn-primary" @onclick="() => PlaceBuyOrder(item)">💸 Buy Now</button>
+
+    @if (orderPlacedToast.TryGetValue(item.Id, out var toast) && toast)
+    {
+        <div class="text-success small mt-1">✅ Order placed!</div>
+    }
 </td>
-                    <td style="vertical-align: top;">
-                        <strong>💰 Price</strong><br />å
-                        @if (isRefreshing.TryGetValue(item.Id, out var refreshing) && refreshing)
-                        {
-                            <em>Refreshing...</em>
-                        }
-                        else
-                        {
-                            <span>@item.LastKnownPrice</span>
-                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => RefreshPrice(item.Id)">🔄</button>
-                        }
-                        <div class="text-muted small">@item.LastUpdated?.ToLocalTime().ToString("g")</div>
-                    </td>
-                    <td style="vertical-align: top;">
-                        <strong>📦 Holdings</strong><br />
-                        Qty: @item.QuantityHeld<br />
-                        Avg: @item.AverageBuyPrice<br />
-                        Value: @(item.AverageBuyPrice * item.QuantityHeld)
-                    </td>
-                    <td style="vertical-align: top;">
-                        <strong>📋 Orders</strong><br />
-                        <em>(orders coming soon)</em><br />
-                        <button class="btn btn-sm btn-outline-secondary">🔄 Refresh Orders</button>
-                    </td>
-                    <td style="vertical-align: top;">
-                        <strong>📝 Notes</strong><br />
-                        <textarea class="notes-textarea" rows="5" cols="50"
-                                  @bind="item.Notes"
-                                  @bind:event="onchange"
-                                  @onblur="() => SaveField(item)"></textarea>
-                    </td>
-                </tr>
-            </table>
-        </div>
-    </td>
-</tr>
-
-                    @* Row 3: Tabs for Trade History, Analysis, Graph *@
-                    <tr>
-    <td colspan="5">
-        <div style="vertical-align: top;">
-        <div class="tab-container">
-    <div class="tab-header">
-        <button class="tab-button @(IsActiveTab(item.Id, "trade"))" @onclick='() => SelectTab(item.Id, "trade")'>📈 Trade History</button>
-        <button class="tab-button @(IsActiveTab(item.Id, "analysis"))" @onclick='() => SelectTab(item.Id, "analysis")'>📊 Analysis</button>
-        <button class="tab-button @(IsActiveTab(item.Id, "graph"))" @onclick='() => SelectTab(item.Id, "graph")'>📉 Graph</button>
-    </div>
-   
 
 
-    <div class="tab-body">
-        @if (selectedId == item.Id)
-        {
-            @switch (activeTab)
-            {
-                case "trade":
-                    <p>(Trade history UI coming soon...)</p>
-                    break;
-                case "analysis":
-                    <p>(Analysis values here...)</p>
-                    break;
-                case "graph":
-                    <p>(Graph rendering here...)</p>
-                    break;
+                                    </tr>
+                                </table>
+
+                                <!-- Row 3: Tabs -->
+                                <div class="tab-container mt-3">
+                                    <div class="tab-header">
+                                        <button class="tab-button @(IsActiveTab(item.Id, "trade"))"
+                                            @onclick='() => SelectTab(item.Id, "trade")'>📈 Trade History</button>
+                                        <button class="tab-button @(IsActiveTab(item.Id, "analysis"))"
+                                            @onclick='() => SelectTab(item.Id, "analysis")'>📊 Analysis</button>
+                                        <button class="tab-button @(IsActiveTab(item.Id, "graph"))"
+                                            @onclick='() => SelectTab(item.Id, "graph")'>📉 Graph</button>
+                                        <button class="tab-button @(IsActiveTab(item.Id, "notes"))"
+                                            @onclick='() => SelectTab(item.Id, "notes")'>🗒️ Notes</button>
+                                    </div>
+
+                                    <div class="tab-body">
+                                        @if (selectedId == item.Id)
+                                        {
+                                            @switch (activeTab)
+                                            {
+                                                case "analysis":
+                                                    <p>(Analysis values here...)</p>
+                                                    break;
+
+                                                case "trades":
+                                                    <div class="trades-tab">
+                                                        <div class="mb-3">
+                                                            <h6>🕒 Pending Orders</h6>
+                                                            <table class="table table-sm table-bordered">
+                                                                <thead class="table-light">
+                                                                    <tr>
+                                                                        <th>Type</th>
+                                                                        <th>Price</th>
+                                                                        <th>Quantity</th>
+                                                                        <th>Cost</th>
+                                                                        <th>Brokerage</th>
+                                                                        <th>Note</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>Buy</td>
+                                                                        <td>$12.00</td>
+                                                                        <td>100</td>
+                                                                        <td>$1,200.00</td>
+                                                                        <td>$10.00</td>
+                                                                        <td>Waiting for dip</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>Sell</td>
+                                                                        <td>$15.00</td>
+                                                                        <td>50</td>
+                                                                        <td>$750.00</td>
+                                                                        <td>$10.00</td>
+                                                                        <td>Short-term swing</td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+
+                                                        <div>
+                                                            <h6>📘 Completed Orders</h6>
+                                                            <table class="table table-sm table-bordered">
+                                                                <thead class="table-light">
+                                                                    <tr>
+                                                                        <th>Type</th>
+                                                                        <th>Price</th>
+                                                                        <th>Quantity</th>
+                                                                        <th>Total</th>
+                                                                        <th>Date</th>
+                                                                        <th>Note</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>Buy</td>
+                                                                        <td>$11.50</td>
+                                                                        <td>200</td>
+                                                                        <td>$2,300.00</td>
+                                                                        <td>2024-12-10</td>
+                                                                        <td>Initial position</td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>Sell</td>
+                                                                        <td>$16.20</td>
+                                                                        <td>100</td>
+                                                                        <td>$1,620.00</td>
+                                                                        <td>2025-02-15</td>
+                                                                        <td>Profit-taking</td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                    break;
+
+
+
+                                                case "graph":
+                                                    <p>(Graph rendering here...)</p>
+                                                    break;
+                                                case "notes":
+                                                    <div>
+
+
+                                                        <div class="editor-toolbar mb-2">
+                                                            <button type="button" class="btn btn-sm btn-light"
+                                                                @onclick='() => FormatText("bold", item.Id)'><b>B</b></button>
+                                                            <button type="button" class="btn btn-sm btn-light"
+                                                                @onclick='() => FormatText("italic", item.Id)'><i>I</i></button>
+                                                            <button type="button" class="btn btn-sm btn-light"
+                                                                @onclick='() => FormatText("underline", item.Id)'><u>U</u></button>
+                                                        </div>
+                                                        <div class="memo-textarea" style="white-space: pre-wrap; word-break: break-word; overflow-x: hidden;" @key="item.Id" contenteditable="true"
+                                                            @ref="editorRefs[item.Id]" @oninput="() => SaveRichNote(item)"
+                                                            @onkeydown="e => HandleKeyDown(e, item.Id)" @onblur="() => SaveRichNote(item)">
+                                                        </div>
+
+
+
+
+
+                                                        @if (noteSaved.TryGetValue(item.Id, out var saved) && saved)
+                                                        {
+                                                            <div class="memo-saved-status">💾 Autosaved</div>
+                                                        }
+                                                    </div>
+                                                    break;
+                                                default:
+                                                    <p>Unknown tab selected.</p>
+                                                    break;
+                                            }
+                                        }
+                                    </div>
+                                </div>
+
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
             }
-        }
-    </div> </div>
-</div>
-
-
-        @* <div class="tab-content border p-3 bg-light">
-            @if (selectedId == item.Id)
-            {
-                @switch (activeTab)
-                {
-                    case "trade":
-                        <div><p>(Trade history UI coming soon...)</p></div>
-                        break;
-                    case "analysis":
-                        <div><p>(Analysis values will go here...)</p></div>
-                        break;
-                    case "graph":
-                        <div><p>(Graph rendering goes here...)</p></div>
-                        break;
-                }
-            }
-        </div> *@
-    </td>
-</tr>
-</div>
-
-                }
-            </tbody>
         </table>
     </div>
 
-    <button class="btn btn-success mb-3" @onclick="AddNew">➕ Add New</button>
+    <button class="btn btn-success mb-3 me-2" @onclick="AddNew">➕ Add New</button>
 }
 
-
 @code {
+
+    @inject SuperheroTrader Trader
+
     private List<WatchlistItem> items = new();
     private bool isRendered = false;
     private bool isLoading = true;
-    private int? refreshingItemId = null;
-    private Dictionary<int, bool> isRefreshing = new(); // track loading per row
-    private Dictionary<int, string> refreshErrors = new(); // track errors per row
+    private Dictionary<int, bool> isRefreshing = new();
+    private Dictionary<int, string> refreshErrors = new();
 
-    private bool showToast = false;
     private bool toastVisible = false;
     private string toastMessage = string.Empty;
-    @inject IJSRuntime JS
-    private ElementReference buyInputRef;
-    private ElementReference sellInputRef;
-    private int? hoverRow = null;
-    private int? refreshingId = null;
 
     private int? expandedItemId = null;
-    private int? showTradeHistoryId = null;
-
     private int? selectedId = null;
-private string activeTab = "trade";
+    private string activeTab = "trade";
 
-void SelectTab(int id, string tab)
-{
-    selectedId = id;
-    activeTab = tab;
-}
-
-    void ToggleAccordion(int id)
-    {
-        expandedItemId = (expandedItemId == id) ? null : id;
-    }
-
-    void ToggleTradeHistory(int id)
-    {
-        showTradeHistoryId = (showTradeHistoryId == id) ? null : id;
-    }
+    private UserConfig config = new();
+    private Dictionary<int, ElementReference> editorRefs = new();
+    private Dictionary<int, bool> noteSaved = new();
+    private CancellationTokenSource? debounceCts;
+    private Dictionary<int, bool> orderPlacedToast = new();
 
 
-    void ShowToast(string message)
-    {
-        toastMessage = message;
-        toastVisible = true;
-        StateHasChanged();
 
-        // Auto-hide after 3 seconds
-        _ = Task.Delay(3000).ContinueWith(_ =>
-        {
-            toastVisible = false;
-            InvokeAsync(StateHasChanged);
-        });
-    }
+
+
+
+    // Your current OnAfterRenderAsync should now look like this:
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender) return;
+        if (firstRender)
+        {
+            isRendered = true;
+            await LoadData();
 
-        isRendered = true;
+            foreach (var item in items)
+            {
+                item.BuyNowPrice = item.LastKnownPrice ?? 0;
+                item.BuyNowTotalCost = 0;
+            }
+        }
+    }
 
+
+
+
+
+    private async Task LoadData()
+    {
         try
         {
+
             var auth = await AuthProvider.GetAuthenticationStateAsync();
             var user = auth.User;
-
-            if (!user.Identity?.IsAuthenticated ?? true)
-            {
-                Console.WriteLine("❌ Not authenticated.");
-                isLoading = false;
-                StateHasChanged();
-                return;
-            }
+            if (!user.Identity?.IsAuthenticated ?? true) return;
 
             var client = ClientFactory.CreateClient("Default");
-            var response = await client.GetAsync("/api/watchlist");
 
-            if (!response.IsSuccessStatusCode)
+            var listResponse = await client.GetAsync("/api/watchlist");
+            var configResponse = await
+            client.GetAsync($"/api/userconfig/{user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value}");
+
+            if (listResponse.IsSuccessStatusCode)
             {
-                Console.WriteLine("🚨 API call failed: " + response.StatusCode);
-                isLoading = false;
-                StateHasChanged();
-                return;
+                items = (await listResponse.Content.ReadFromJsonAsync<List<WatchlistItem>>() ?? new())
+                .OrderBy(i => i.Ticker)
+                .ToList();
             }
 
-            items = (await response.Content.ReadFromJsonAsync<List<WatchlistItem>>() ?? new())
-            .OrderBy(i => i.Ticker)
-            .ToList();
+            if (configResponse.IsSuccessStatusCode)
+            {
+                config = await configResponse.Content.ReadFromJsonAsync<UserConfig>() ?? new();
+            }
         }
         catch (Exception ex)
         {
-            Console.WriteLine("🔥 Exception in Watchlist: " + ex.Message);
+            Console.WriteLine("🔥 Error: " + ex.Message);
         }
 
         isLoading = false;
         StateHasChanged();
     }
 
-    void AddNew() => NavManager.NavigateTo("/watchlist/edit");
-    void EditItem(int id) => NavManager.NavigateTo($"/watchlist/edit/{id}");
 
-    async Task DeleteItem(int id)
+    private async void ToggleTicker(int id)
     {
-        var client = ClientFactory.CreateClient("Default");
-        await client.DeleteAsync($"/api/watchlist/{id}");
+        if (config.ShowOneExpandedTicker)
+            expandedItemId = (expandedItemId == id) ? null : id;
+        else
+            expandedItemId = (expandedItemId == id) ? null : id;
 
-        items = (await client.GetFromJsonAsync<List<WatchlistItem>>("/api/watchlist") ?? new List<WatchlistItem>())
-        .OrderBy(i => i.Ticker)
-        .ToList();
+        if (expandedItemId.HasValue && editorRefs.TryGetValue(expandedItemId.Value, out var editorRef))
+        {
+            var item = items.FirstOrDefault(i => i.Id == expandedItemId);
+            if (item != null)
+            {
+                await JS.InvokeVoidAsync("setMemoText", editorRef, item.Notes ?? "");
+            }
+        }
     }
 
+
+
+    private async void SelectTab(int id, string tab)
+    {
+        selectedId = id;
+        activeTab = tab;
+
+        if (tab == "notes")
+        {
+            // wait for DOM to render before calling JS
+            await Task.Delay(50); // tweak as needed
+            if (editorRefs.TryGetValue(id, out var editorRef))
+            {
+                var item = items.FirstOrDefault(i => i.Id == id);
+                if (item != null)
+                {
+                    await JS.InvokeVoidAsync("setMemoText", editorRef, item.Notes ?? "");
+                }
+            }
+        }
+    }
+
+
+
+
+    private string IsActiveTab(int id, string tab) =>
+    selectedId == id && activeTab == tab ? "active" : "";
+
+    private void ShowToast(string message)
+    {
+        toastMessage = message;
+        toastVisible = true;
+        StateHasChanged();
+
+        _ = Task.Delay(3000).ContinueWith(_ =>
+        {
+            toastVisible = false;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private void AddNew() => NavManager.NavigateTo("/watchlist/edit");
 
     private async Task RefreshPrice(int id)
     {
@@ -292,7 +448,7 @@ void SelectTab(int id, string tab)
 
         if (!response.IsSuccessStatusCode)
         {
-            refreshErrors[id] = $"Failed to refresh. Status: {response.StatusCode}";
+            refreshErrors[id] = $"Failed to refresh: {response.StatusCode}";
             isRefreshing[id] = false;
             StateHasChanged();
             return;
@@ -309,84 +465,133 @@ void SelectTab(int id, string tab)
         StateHasChanged();
     }
 
-    async Task SaveField(WatchlistItem item)
+    private async Task SaveField(WatchlistItem item)
     {
-        var authState = await AuthProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-
-Console.WriteLine($"🔎 Saving item {item.Id}: Buy={item.TargetBuyPrice}, Sell={item.TargetSellPrice}, User={item.UserId}");
-
-
-        if (!user.Identity?.IsAuthenticated ?? true)
-        {
-            Console.WriteLine("❌ Not authenticated, cannot save.");
-            return;
-        }
-
-        item.UserId ??= user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
-
         var client = ClientFactory.CreateClient("Default");
+
         var response = await client.PutAsJsonAsync($"/api/watchlist/{item.Id}", item);
         if (!response.IsSuccessStatusCode)
         {
-            Console.WriteLine($"❌ Failed to auto-save item {item.Id}: {response.StatusCode}");
-            return;
+            Console.WriteLine($"❌ Failed to save item {item.Id}: {response.StatusCode}");
         }
-
-
-
-        // Optional: trigger toast here if needed
-        ShowToast("...");
     }
 
-    @* void SelectText(FocusEventArgs e)
+    private async Task PlaceBuyOrder(WatchlistItem item)
 {
-JS.InvokeVoidAsync("selectInputText", e.Target);
-} *@
+    Console.WriteLine($"📦 Placing buy order for {item.Ticker}");
+    Console.WriteLine($"💲 Total Cost: {item.BuyNowTotalCost}, Price: {item.BuyNowPrice}, Market Order: {item.BuyNowMarketOrder}");
 
-
-    private async Task SelectInput(ElementReference input)
+    try
     {
-        await JS.InvokeVoidAsync("eval", "setTimeout(() => arguments[0].select(), 0)", input);
+        await trader.PlaceBuyOrder(
+            item.Ticker,
+            item.BuyNowTotalCost,
+            item.BuyNowPrice ?? 0m,
+            item.BuyNowMarketOrder
+        );
+
+        // Show toast for this item
+        orderPlacedToast[item.Id] = true;
+        StateHasChanged();
+
+        // Hide after 3 seconds
+        await Task.Delay(3000);
+        orderPlacedToast[item.Id] = false;
+        StateHasChanged();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"❌ Failed to place order for {item.Ticker}: {ex.Message}");
+    }
+}
+
+
+
+
+
+    private void UpdateStopLossPrice(WatchlistItem item)
+    {
+        if (item.StopLossPercent.HasValue && item.TargetBuyPrice > 0)
+        {
+            item.StopLossPrice = item.TargetBuyPrice * (1 - item.StopLossPercent.Value / 100);
+        }
     }
 
-    private string IsActiveTab(int id, string tab) =>
-    selectedId == id && activeTab == tab ? "active" : "";
-
-
-
-    public class WatchlistItem
+    private async void OnStopLossPercentChanged(WatchlistItem item)
     {
-        public int Id { get; set; }
-        public string Ticker { get; set; } = string.Empty;
-        public decimal TargetBuyPrice { get; set; }
-        public decimal TargetSellPrice { get; set; }
-        public DateTime ExpiryDate { get; set; }
-        public decimal? LastKnownPrice { get; set; }
-        public DateTime? LastUpdated { get; set; }
-        public string Notes { get; set; } = string.Empty;
-        public string UserId { get; set; } = string.Empty;
-
-        // Portfolio fields
-        public int QuantityHeld { get; set; }
-        public decimal AverageBuyPrice { get; set; }
-        public string LastTradeType { get; set; } = string.Empty;
-        public int LastTradeQuantity { get; set; }
-        public decimal LastTradePrice { get; set; }
-        public DateTime? LastTradeDate { get; set; }
-        public string LastTradeNote { get; set; } = string.Empty;
-
-        // Analysis fields
-        public string AnalysisSector { get; set; } = string.Empty;
-        public string AnalysisIndustry { get; set; } = string.Empty;
-        public string AnalysisPERatio { get; set; } = string.Empty;
-        public string AnalysisDividend { get; set; } = string.Empty;
-        public string AnalysisInsiderBuying { get; set; } = string.Empty;
-        public string AnalysisInsiderSelling { get; set; } = string.Empty;
-        public string AnalysisCountry { get; set; } = string.Empty;
-        public string AnalysisCapSize { get; set; } = string.Empty;
-        public string AnalysisValuation { get; set; } = string.Empty;
-        public string AnalysisNotes { get; set; } = string.Empty;
+        if (item.TargetBuyPrice > 0 && item.StopLossPercent.HasValue)
+        {
+            item.StopLossPrice = Math.Round(
+            item.TargetBuyPrice * (1 - item.StopLossPercent.Value / 100), 2);
+            await SaveField(item);
+        }
     }
+
+    private async void OnStopLossPriceChanged(WatchlistItem item)
+    {
+        if (item.TargetBuyPrice > 0 && item.StopLossPrice.HasValue)
+        {
+            item.StopLossPercent = (int)Math.Round(
+            100 * (1 - item.StopLossPrice.Value / item.TargetBuyPrice));
+            await SaveField(item);
+        }
+    }
+
+    private async Task SaveRichNote(WatchlistItem item)
+    {
+        if (editorRefs.TryGetValue(item.Id, out var editorRef))
+        {
+            string content = await JS.InvokeAsync<string>("getMemoText", editorRef);
+            item.Notes = content;
+
+            debounceCts?.Cancel();
+            debounceCts = new CancellationTokenSource();
+            var token = debounceCts.Token;
+
+            try
+            {
+                await Task.Delay(800, token); // debounce delay
+                await SaveField(item);
+                noteSaved[item.Id] = true;
+                StateHasChanged();
+            }
+            catch (TaskCanceledException)
+            {
+                // ignore
+            }
+        }
+    }
+
+
+    private async Task FormatText(string command, int itemId)
+    {
+        if (editorRefs.TryGetValue(itemId, out var editorRef))
+        {
+            await JS.InvokeVoidAsync("formatMemoText", command, editorRef);
+        }
+    }
+
+    private async void HandleKeyDown(KeyboardEventArgs e, int itemId)
+    {
+        if ((e.CtrlKey || e.MetaKey) && !string.IsNullOrEmpty(e.Key))
+        {
+            switch (e.Key.ToLower())
+            {
+                case "b":
+                    await FormatText("bold", itemId);
+                    break;
+                case "i":
+                    await FormatText("italic", itemId);
+                    break;
+                case "u":
+                    await FormatText("underline", itemId);
+                    break;
+            }
+        }
+    }
+
+
+
+
 
 }

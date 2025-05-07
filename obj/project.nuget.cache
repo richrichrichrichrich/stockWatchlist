@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "bFChSD0HcfI=",
+  "dgSpecHash": "da/1T75jOlM=",
   "success": true,
   "projectFilePath": "/Users/richrichrichrichrich/Projects_DOTNET/stockWatchlist/AsxWatchlist.csproj",
   "expectedPackageFiles": [
@@ -111,6 +111,7 @@
     "/Users/richrichrichrichrich/.nuget/packages/microsoft.jsinterop/8.0.0/microsoft.jsinterop.8.0.0.nupkg.sha512",
     "/Users/richrichrichrichrich/.nuget/packages/microsoft.jsinterop.webassembly/8.0.0/microsoft.jsinterop.webassembly.8.0.0.nupkg.sha512",
     "/Users/richrichrichrichrich/.nuget/packages/microsoft.net.stringtools/17.10.4/microsoft.net.stringtools.17.10.4.nupkg.sha512",
+    "/Users/richrichrichrichrich/.nuget/packages/microsoft.playwright/1.51.0/microsoft.playwright.1.51.0.nupkg.sha512",
     "/Users/richrichrichrichrich/.nuget/packages/microsoft.visualstudio.web.codegeneration/9.0.0/microsoft.visualstudio.web.codegeneration.9.0.0.nupkg.sha512",
     "/Users/richrichrichrichrich/.nuget/packages/microsoft.visualstudio.web.codegeneration.core/9.0.0/microsoft.visualstudio.web.codegeneration.core.9.0.0.nupkg.sha512",
     "/Users/richrichrichrichrich/.nuget/packages/microsoft.visualstudio.web.codegeneration.design/9.0.0/microsoft.visualstudio.web.codegeneration.design.9.0.0.nupkg.sha512",
@@ -133,6 +134,7 @@
     "/Users/richrichrichrichrich/.nuget/packages/nuget.versioning/6.11.0/nuget.versioning.6.11.0.nupkg.sha512",
     "/Users/richrichrichrichrich/.nuget/packages/system.codedom/6.0.0/system.codedom.6.0.0.nupkg.sha512",
     "/Users/richrichrichrichrich/.nuget/packages/system.collections.immutable/8.0.0/system.collections.immutable.8.0.0.nupkg.sha512",
+    "/Users/richrichrichrichrich/.nuget/packages/system.componentmodel.annotations/5.0.0/system.componentmodel.annotations.5.0.0.nupkg.sha512",
     "/Users/richrichrichrichrich/.nuget/packages/system.composition/7.0.0/system.composition.7.0.0.nupkg.sha512",
     "/Users/richrichrichrichrich/.nuget/packages/system.composition.attributedmodel/7.0.0/system.composition.attributedmodel.7.0.0.nupkg.sha512",
     "/Users/richrichrichrichrich/.nuget/packages/system.composition.convention/7.0.0/system.composition.convention.7.0.0.nupkg.sha512",

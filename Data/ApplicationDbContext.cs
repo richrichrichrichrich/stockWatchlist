@@ -12,6 +12,8 @@ namespace AsxWatchlist.Data
         }
 
         public DbSet<WatchlistItem> WatchlistItems { get; set; }
+        public DbSet<UserConfig> UserConfigs { get; set; }
+
 
 
     }

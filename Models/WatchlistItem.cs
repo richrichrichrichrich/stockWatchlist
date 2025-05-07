@@ -1,6 +1,7 @@
-using System;
+
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+
 
 namespace AsxWatchlist.Models
 {
@@ -71,5 +72,21 @@ namespace AsxWatchlist.Models
 
         [MaxLength(1000)]
         public string? AnalysisNotes { get; set; }
+        [Range(0, 100)]
+        public decimal? StopLossPercent { get; set; }
+        public decimal? StopLossPrice { get; set; }
+
+        // Temp values for Buy Now operation (not stored in DB)
+        [NotMapped]
+        public decimal BuyNowTotalCost { get; set; }
+
+        [NotMapped]
+        public decimal? BuyNowPrice { get; set; }
+
+        [NotMapped]
+        public bool BuyNowMarketOrder { get; set; }
+
+
+
     }
 }
