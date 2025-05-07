@@ -37,3 +37,4 @@ yarn.lock
 Migrations/*Snapshot.cs
 obj/
 bin/
+bin/
